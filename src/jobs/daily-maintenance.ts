@@ -198,6 +198,8 @@ export async function runDailyMaintenance(customQuota?: number): Promise<DailyRu
       durationSeconds,
     });
     console.log(`Discord dispatch: ${discordRes.message}`);
+  } else {
+    console.warn(`\n⚠️ [Notice] DISCORD_WEBHOOK_URL is empty or not configured. Skipping Discord notification.`);
   }
 
   console.log(
