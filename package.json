@@ -1,0 +1,29 @@
+{
+  "name": "ambiakshi-maintenance",
+  "version": "1.0.0",
+  "description": "Ambiakshi ecosystem automated maintenance, GSC page indexing, and Supabase keep-alive routines",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "maintenance:daily": "tsx src/jobs/daily-maintenance.ts",
+    "index:daily": "tsx src/index.ts --mode=indexing --quota=200",
+    "index:all": "tsx src/index.ts --mode=indexing --all",
+    "index:status": "tsx src/index.ts --mode=status",
+    "supabase:keepalive": "tsx src/index.ts --mode=keepalive",
+    "supabase:inventory": "tsx src/index.ts --mode=inventory",
+    "audit:weekly": "tsx src/jobs/weekly-audit.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7",
+    "fast-xml-parser": "^4.5.3",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

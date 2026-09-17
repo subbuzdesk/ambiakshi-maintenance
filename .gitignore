@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+
+# Environment and Secret credentials
+.env
+.env.local
+service_account.json
+google-credentials.json
+*.pem
+*.key
+
+# Runtime logs and ephemeral data
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# OS specific
+.DS_Store
+Thumbs.db
