@@ -26,8 +26,11 @@ export class DiscordNotifierService {
   /**
    * Send notification payload to configured Discord Webhook URL
    */
-  static async sendNotification(payload: DiscordPayload): Promise<{ success: boolean; message: string }> {
-    const webhookUrl = config.discordWebhookUrl;
+  static async sendNotification(
+    payload: DiscordPayload,
+    customWebhookUrl?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const webhookUrl = customWebhookUrl || config.discordMobileWebhookUrl || config.discordWebhookUrl;
     if (!webhookUrl) {
       return {
         success: true,
@@ -229,5 +232,116 @@ export class DiscordNotifierService {
       username: "Ambiakshi Daily Maintenance Bot",
       embeds: [embed],
     });
+  }
+
+  /**
+   * Send structured Mobile Games Maintenance Digest to Discord
+   */
+  static async sendMobileGamesMaintenanceDigest(data: {
+    totalGames: number;
+    healthyGamesCount: number;
+    totalEndpointsChecked: number;
+    endpointsOkCount: number;
+    endpointsFailedCount: number;
+    averageLatencyMs: number;
+    overallHealthScore: number;
+    durationSeconds: number;
+    sslStatus?: string;
+    sslDaysRemaining?: number;
+    games: Array<{
+      name: string;
+      repoName: string;
+      isHealthy: boolean;
+      averageLatencyMs: number;
+      endpoints: Array<{ url: string; isOk: boolean; httpStatus: number; responseTimeMs: number; type: string; errorMessage?: string }>;
+      localRepo: {
+        isCloned: boolean;
+        branch?: string;
+        version?: string;
+        packageDependenciesCount?: number;
+        hasBuildArtifacts: boolean;
+        detectedMigrations?: string[];
+      };
+    }>;
+  }): Promise<{ success: boolean; message: string }> {
+    const hasFailures = data.endpointsFailedCount > 0;
+    const isSlow = data.averageLatencyMs > 600;
+
+    let color = 0x8b5cf6; // Vibrant Purple / Game theme
+    let statusEmoji = "🎮";
+
+    if (hasFailures) {
+      color = 0xef4444; // Red
+      statusEmoji = "🚨";
+    } else if (isSlow) {
+      color = 0xf59e0b; // Amber
+      statusEmoji = "⚠️";
+    }
+
+    const fields: DiscordEmbedField[] = [
+      {
+        name: "🕹️ Mobile Games Operational Health",
+        value: `**${data.healthyGamesCount} / ${data.totalGames}** Games Fully Healthy\n**${data.endpointsOkCount} / ${data.totalEndpointsChecked}** Endpoints OK (\`${data.overallHealthScore}%\` Health Score)`,
+        inline: true,
+      },
+      {
+        name: "⚡ Latency & Runtime",
+        value: `Avg Latency: **${data.averageLatencyMs}ms**\nRun Duration: **${data.durationSeconds.toFixed(1)}s**`,
+        inline: true,
+      },
+      {
+        name: "🔒 Mobile Domain SSL",
+        value: `Domain: \`mobile.ambiakshi.com\`\nStatus: **${data.sslStatus || "HEALTHY"}** (${data.sslDaysRemaining ?? "30+"} days remaining)`,
+        inline: true,
+      },
+    ];
+
+    // Add per-game detail cards
+    for (const g of data.games) {
+      const epStatus = g.endpoints
+        .map((e) => `${e.isOk ? "✅" : "❌"} ${e.type.toUpperCase()} (\`${e.responseTimeMs}ms\`)`)
+        .join(" | ");
+
+      const repoInfo = g.localRepo.isCloned
+        ? `📂 Repo: \`v${g.localRepo.version || "1.0.0"}\` on branch \`${g.localRepo.branch || "main"}\` (${g.localRepo.packageDependenciesCount || 0} deps, ${g.localRepo.hasBuildArtifacts ? "Built" : "Source"})`
+        : `☁️ Cloud/CI mode (not cloned locally)`;
+
+      fields.push({
+        name: `${g.isHealthy ? "🟢" : "🔴"} ${g.name} (${g.repoName})`,
+        value: `${epStatus}\n${repoInfo}\nLatency: **${g.averageLatencyMs}ms** avg`,
+        inline: false,
+      });
+    }
+
+    // If any endpoints failed, list them prominently
+    if (hasFailures) {
+      const failedList = data.games
+        .flatMap((g) => g.endpoints.filter((e) => !e.isOk))
+        .map((e) => `• [\`${e.httpStatus || "ERR"}\`] ${e.url}${e.errorMessage ? ` (${e.errorMessage})` : ""}`)
+        .join("\n");
+
+      fields.push({
+        name: "🚨 Failing Endpoints Detected",
+        value: failedList,
+        inline: false,
+      });
+    }
+
+    const embed: DiscordEmbed = {
+      title: `${statusEmoji} Ambiakshi Mobile Games Ecosystem Maintenance`,
+      description: `Automated maintenance and health verification across **PromptCraft Mobile**, **Digitle Game**, and **Vectoshift** on \`mobile.ambiakshi.com\`.`,
+      color,
+      fields,
+      footer: { text: "Ambiakshi Mobile Games Maintenance • Dedicated Batch Run" },
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.sendNotification(
+      {
+        username: "Ambiakshi Mobile Games Bot",
+        embeds: [embed],
+      },
+      config.discordMobileWebhookUrl
+    );
   }
 }

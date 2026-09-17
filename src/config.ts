@@ -21,6 +21,20 @@ export interface SupabaseProject {
   managementToken?: string;
 }
 
+export interface MobileGameConfig {
+  id: string;
+  name: string;
+  repoName: string;
+  repoUrl: string;
+  localPath: string;
+  liveUrls: {
+    play: string;
+    item: string;
+    extra?: string[];
+  };
+  monitoredAssets?: string[];
+}
+
 export interface AppConfig {
   rootDir: string;
   dataDir: string;
@@ -41,8 +55,10 @@ export interface AppConfig {
     managementToken?: string;
   };
   discordWebhookUrl?: string;
+  discordMobileWebhookUrl?: string;
   sslExpiryWarningDays: number;
   monitoredDomains: string[];
+  mobileGames: MobileGameConfig[];
 }
 
 const defaultSitemaps = [
@@ -57,6 +73,56 @@ const defaultMonitoredDomains = [
   "ambiakshi.com",
   "mobile.ambiakshi.com",
   "slm.ambiakshi.com",
+];
+
+const defaultMobileGames: MobileGameConfig[] = [
+  {
+    id: "promptcraft-mobile",
+    name: "PromptCraft Mobile",
+    repoName: "promptcraft-mobile",
+    repoUrl: "https://github.com/subbuzdesk/promptcraft-mobile",
+    localPath: path.resolve(rootDir, "..", "promptcraft-mobile"),
+    liveUrls: {
+      play: "https://mobile.ambiakshi.com/play/promptcraft-mobile",
+      item: "https://mobile.ambiakshi.com/items/promptcraft-mobile",
+    },
+    monitoredAssets: [
+      "https://mobile.ambiakshi.com/favicon.ico",
+      "https://mobile.ambiakshi.com/manifest.json",
+    ],
+  },
+  {
+    id: "digitle-game",
+    name: "Digitle Game",
+    repoName: "digitle-game",
+    repoUrl: "https://github.com/subbuzdesk/digitle-game",
+    localPath: path.resolve(rootDir, "..", "digitle-game"),
+    liveUrls: {
+      play: "https://mobile.ambiakshi.com/play/digitle",
+      item: "https://mobile.ambiakshi.com/items/digitle",
+      extra: [
+        "https://mobile.ambiakshi.com/games/digitle/rules",
+        "https://mobile.ambiakshi.com/games/digitle/archive/today",
+      ],
+    },
+    monitoredAssets: [
+      "https://mobile.ambiakshi.com/favicon.ico",
+    ],
+  },
+  {
+    id: "vectoshift",
+    name: "Vectoshift",
+    repoName: "vectoshift",
+    repoUrl: "https://github.com/subbuzdesk/vectoshift",
+    localPath: path.resolve(rootDir, "..", "vectoshift"),
+    liveUrls: {
+      play: "https://mobile.ambiakshi.com/play/vectoshift",
+      item: "https://mobile.ambiakshi.com/items/vectoshift",
+    },
+    monitoredAssets: [
+      "https://mobile.ambiakshi.com/favicon.ico",
+    ],
+  },
 ];
 
 // Helper to discover all configured Supabase projects
@@ -172,8 +238,13 @@ export const config: AppConfig = {
     managementToken: primaryProject?.managementToken || process.env.SUPABASE_MANAGEMENT_TOKEN,
   },
   discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL?.trim() || undefined,
+  discordMobileWebhookUrl:
+    process.env.DISCORD_MOBILE_WEBHOOK_URL?.trim() ||
+    process.env.DISCORD_WEBHOOK_URL?.trim() ||
+    undefined,
   sslExpiryWarningDays: parseInt(process.env.SSL_EXPIRY_WARNING_DAYS || "30", 10),
   monitoredDomains: process.env.MONITORED_DOMAINS
     ? process.env.MONITORED_DOMAINS.split(",").map((d) => d.trim())
     : defaultMonitoredDomains,
+  mobileGames: defaultMobileGames,
 };

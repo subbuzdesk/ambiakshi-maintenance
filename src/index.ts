@@ -1,5 +1,6 @@
 import { runDailyMaintenance } from "./jobs/daily-maintenance.js";
 import { runWeeklyAudit } from "./jobs/weekly-audit.js";
+import { runMobileGamesMaintenance } from "./jobs/mobile-games-maintenance.js";
 import { IndexingQueueManager } from "./services/indexing-queue.js";
 import { SupabaseKeepAliveService } from "./services/supabase-keepalive.js";
 import { SchemaInventoryService } from "./services/schema-inventory.js";
@@ -166,9 +167,16 @@ async function main() {
       break;
     }
 
+    case "mobile":
+    case "mobile-games": {
+      console.log(`Starting Mobile Games Ecosystem Maintenance...`);
+      await runMobileGamesMaintenance();
+      break;
+    }
+
     default:
       console.log(`Unknown mode: ${modeArg}`);
-      console.log(`Available modes: daily, weekly, indexing, keepalive, status, inventory, ssl`);
+      console.log(`Available modes: daily, weekly, indexing, keepalive, status, inventory, ssl, mobile`);
       process.exit(1);
   }
 }

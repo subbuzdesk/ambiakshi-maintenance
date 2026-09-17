@@ -30,8 +30,17 @@ Automated housekeeping, Google Search Console (GSC) batch indexing, ecosystem he
    - Executes an automated daily heartbeat that connects, inserts a dummy row, confirms active write activity, and deletes the dummy row immediately.
    - Includes full restoration documentation and API hooks to unpause a suspended database.
 
-4. **Automated Windows Task Scheduler**:
-   - PowerShell setup script to register `Ambiakshi_Daily_Maintenance` (Daily at **4:00 AM EST**) and `Ambiakshi_Weekly_Audit` (Sundays at **3:00 AM EST**).
+4. **Phase 2: Mobile Games Ecosystem Maintenance (Dedicated Track)**:
+   - Independent batch runner, GitHub Actions workflow, and Discord reporting for the 3 mobile games on `mobile.ambiakshi.com`:
+     - **PromptCraft Mobile** (`https://github.com/subbuzdesk/promptcraft-mobile`)
+     - **Digitle Game** (`https://github.com/subbuzdesk/digitle-game`)
+     - **Vectoshift** (`https://github.com/subbuzdesk/vectoshift`)
+   - **Live Game Health & Performance**: Audits play endpoints (`/play/*`), game item pages (`/items/*`), sub-routes (`/games/digitle/rules`, `/games/digitle/archive/today`), and static assets (`favicon.ico`, `manifest.json`).
+   - **Local Repository Hygiene**: Audits sibling local cloned repos (`..\promptcraft-mobile`, `..\digitle-game`, `..\vectoshift`) for Git branch, version, dependencies count, build artifacts, and migration definitions.
+   - **Dedicated Discord Digest**: Sends rich game-themed embeds with latency metrics, repository status, and operational health score.
+
+5. **Automated Windows Task Scheduler**:
+   - PowerShell setup script to register `Ambiakshi_Daily_Maintenance` (Daily at **4:00 AM EST**), `Ambiakshi_Weekly_Audit` (Sundays at **3:00 AM EST**), and `Ambiakshi_Mobile_Games_Maintenance` (Daily at **5:00 AM EST**).
 
 ---
 
@@ -164,6 +173,8 @@ To enable direct indexing submissions to Google:
 | `npm run index:status` | Displays queue metrics, 200 OK counts, failing 40x URLs, and estimated full cycle days. |
 | `npm run supabase:keepalive` | Runs a standalone Supabase heartbeat dummy insert/delete. |
 | `npm run supabase:inventory` | Scans adjacent local Git repositories (`ambiakshi-home`, `ambiakshi-tools`, etc.) and probes table counts. |
+| `npm run maintenance:mobile` | **Phase 2**: Runs dedicated mobile games maintenance (PromptCraft, Digitle, Vectoshift), inspects local repos, and dispatches Discord summary. |
+| `npm run mobile:audit` | CLI alias to run mobile games maintenance via unified entry point. |
 
 ---
 
@@ -172,6 +183,7 @@ To enable direct indexing submissions to Google:
 To configure the tasks to run automatically:
 - **Daily Maintenance**: Every day at **4:00 AM EST**
 - **Weekly Audit**: Every Sunday at **3:00 AM EST**
+- **Mobile Games Maintenance**: Every day at **5:00 AM EST**
 
 1. Open PowerShell as Administrator.
 2. Run:

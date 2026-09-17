@@ -10,13 +10,15 @@
 param(
     [string]$DailyTime = "04:00",
     [string]$WeeklyTime = "03:00",
-    [string]$TaskType = "all" # Options: all, daily, weekly
+    [string]$MobileTime = "05:00",
+    [string]$TaskType = "all" # Options: all, daily, weekly, mobile
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Resolve-Path "$ScriptDir\.."
 $DailyBatPath = Join-Path $ProjectRoot "scripts\run-daily-4am.bat"
 $WeeklyBatPath = Join-Path $ProjectRoot "scripts\run-weekly.bat"
+$MobileBatPath = Join-Path $ProjectRoot "scripts\run-mobile-games.bat"
 
 function Register-AmbiakshiTask {
     param(
@@ -60,7 +62,13 @@ if ($TaskType -eq "all" -or $TaskType -eq "weekly") {
     Register-AmbiakshiTask -Name "Ambiakshi_Weekly_Audit" -BatFilePath $WeeklyBatPath -Trigger $WeeklyTrigger -Description "Ambiakshi weekly ecosystem audit: 100% catalog health, Supabase schema probe, and SSL audit."
 }
 
+if ($TaskType -eq "all" -or $TaskType -eq "mobile") {
+    $MobileTrigger = New-ScheduledTaskTrigger -Daily -At $MobileTime
+    Register-AmbiakshiTask -Name "Ambiakshi_Mobile_Games_Maintenance" -BatFilePath $MobileBatPath -Trigger $MobileTrigger -Description "Ambiakshi mobile games maintenance: PromptCraft, Digitle, Vectoshift health & repo audit."
+}
+
 Write-Host "`nAll scheduled tasks configured."
 Write-Host "To test run weekly audit: Start-ScheduledTask -TaskName 'Ambiakshi_Weekly_Audit'"
 Write-Host "To test run daily maintenance: Start-ScheduledTask -TaskName 'Ambiakshi_Daily_Maintenance'"
+Write-Host "To test run mobile games maintenance: Start-ScheduledTask -TaskName 'Ambiakshi_Mobile_Games_Maintenance'"
 

@@ -15,7 +15,9 @@
     "supabase:inventory": "tsx src/index.ts --mode=inventory",
     "audit:ssl": "tsx src/index.ts --mode=ssl",
     "audit:weekly": "tsx src/jobs/weekly-audit.ts",
-    "maintenance:weekly": "tsx src/index.ts --mode=weekly"
+    "maintenance:weekly": "tsx src/index.ts --mode=weekly",
+    "maintenance:mobile": "tsx src/jobs/mobile-games-maintenance.ts",
+    "mobile:audit": "tsx src/index.ts --mode=mobile"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

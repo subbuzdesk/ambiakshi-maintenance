@@ -1,0 +1,45 @@
+name: Ambiakshi Mobile Games Maintenance
+# Dedicated maintenance and health audit for PromptCraft Mobile, Digitle Game, and Vectoshift
+
+on:
+  schedule:
+    # Runs daily at 09:00 UTC (5:00 AM EDT / 4:00 AM EST) - staggered from main daily maintenance
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    # Allows manual 1-click trigger from GitHub Actions tab
+
+jobs:
+  mobile-games-maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Mobile Games Maintenance & Health Audit
+        run: npm run maintenance:mobile
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_MOBILE_WEBHOOK_URL: ${{ secrets.DISCORD_MOBILE_WEBHOOK_URL }}
+          SSL_EXPIRY_WARNING_DAYS: 30
+          MONITORED_DOMAINS: "mobile.ambiakshi.com"
+
+      - name: Upload Mobile Games Run Reports (Artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-games-maintenance-reports
+          if-no-files-found: ignore
+          path: |
+            reports/mobile-games/*.md
+          retention-days: 14
