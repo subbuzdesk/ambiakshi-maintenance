@@ -344,4 +344,110 @@ export class DiscordNotifierService {
       config.discordMobileWebhookUrl
     );
   }
+
+  /**
+   * Send comprehensive backup & cold-storage notification to Discord
+   */
+  static async sendBackupSummary(data: {
+    supabaseSummary?: {
+      totalRowsDumped: number;
+      totalBytesWritten: number;
+      allSuccessful: boolean;
+      projects: {
+        projectId: string;
+        projectName: string;
+        totalRows: number;
+        fileSizeBytes: number;
+        success: boolean;
+      }[];
+    };
+    repoSummary?: {
+      totalReposConfigured: number;
+      reposBundledCount: number;
+      totalBytesWritten: number;
+      allSuccessful: boolean;
+      results: {
+        id: string;
+        name: string;
+        branch?: string;
+        fileSizeBytes: number;
+        success: boolean;
+      }[];
+    };
+    secretSummary?: {
+      filesCapturedCount: number;
+      fileSizeBytes: number;
+      success: boolean;
+    };
+    durationSeconds: number;
+  }): Promise<{ success: boolean; message: string }> {
+    const isSuccess =
+      (data.supabaseSummary ? data.supabaseSummary.allSuccessful : true) &&
+      (data.repoSummary ? data.repoSummary.allSuccessful : true) &&
+      (data.secretSummary ? data.secretSummary.success : true);
+
+    const color = isSuccess ? 0x10b981 : 0xef4444; // Green or Red
+    const statusEmoji = isSuccess ? "💾" : "🚨";
+
+    const fields: DiscordEmbedField[] = [];
+
+    // 1. Supabase logical backup field
+    if (data.supabaseSummary) {
+      const projDetails = data.supabaseSummary.projects
+        .map(
+          (p) =>
+            `${p.success ? "🟢" : "🔴"} **${p.projectName}**: ${p.totalRows} rows (\`${(p.fileSizeBytes / 1024).toFixed(1)} KB\`)`
+        )
+        .join("\n");
+
+      fields.push({
+        name: "🗄️ Supabase Logical Backups",
+        value: `Total Rows: **${data.supabaseSummary.totalRowsDumped}** | Archive Size: **${(data.supabaseSummary.totalBytesWritten / 1024).toFixed(1)} KB**\n${projDetails || "No projects configured"}`,
+        inline: false,
+      });
+    }
+
+    // 2. Git Bundles cold storage field
+    if (data.repoSummary) {
+      const mb = (data.repoSummary.totalBytesWritten / (1024 * 1024)).toFixed(2);
+      const topRepos = data.repoSummary.results
+        .filter((r) => r.success)
+        .slice(0, 6)
+        .map((r) => `• \`${r.id}\` (\`${(r.fileSizeBytes / 1024).toFixed(0)} KB\`)`)
+        .join(", ");
+
+      fields.push({
+        name: "📦 Git Bundles (Code Escrow)",
+        value: `**${data.repoSummary.reposBundledCount} / ${data.repoSummary.totalReposConfigured}** Repositories Bundled (\`${mb} MB\` total)\n${topRepos}${data.repoSummary.results.length > 6 ? ` + ${data.repoSummary.results.length - 6} more` : ""}`,
+        inline: false,
+      });
+    }
+
+    // 3. Encrypted Secrets Escrow field
+    if (data.secretSummary) {
+      fields.push({
+        name: "🔒 Encrypted Secrets Escrow",
+        value: data.secretSummary.success
+          ? `Captured **${data.secretSummary.filesCapturedCount}** secret/env files (AES-256-GCM encrypted, \`${(data.secretSummary.fileSizeBytes / 1024).toFixed(1)} KB\`)`
+          : "❌ Secret backup failed",
+        inline: false,
+      });
+    }
+
+    const embed: DiscordEmbed = {
+      title: `${statusEmoji} Ambiakshi Ecosystem Cold Backup & Escrow`,
+      description: `Automated database logical snapshots, Git repository bundles, and encrypted secret archive completed in **${data.durationSeconds.toFixed(1)}s**.`,
+      color,
+      fields,
+      footer: { text: "Ambiakshi Housekeeping • Disaster Recovery Suite" },
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.sendNotification({
+      username: "Ambiakshi Backup Bot",
+      embeds: [embed],
+    });
+  }
 }
+
+export const DiscordNotifier = DiscordNotifierService;

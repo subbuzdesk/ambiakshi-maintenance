@@ -27,6 +27,11 @@ data/sitemaps_cache.json
 npm-debug.log*
 yarn-debug.log*
 
+# Backups (Local database dumps, git bundles, encrypted secrets)
+backups/
+*.bundle
+*.enc
+
 # OS specific
 .DS_Store
 Thumbs.db

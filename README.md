@@ -39,8 +39,19 @@ Automated housekeeping, Google Search Console (GSC) batch indexing, ecosystem he
    - **Local Repository Hygiene**: Audits sibling local cloned repos (`..\promptcraft-mobile`, `..\digitle-game`, `..\vectoshift`) for Git branch, version, dependencies count, build artifacts, and migration definitions.
    - **Dedicated Discord Digest**: Sends rich game-themed embeds with latency metrics, repository status, and operational health score.
 
-5. **Automated Windows Task Scheduler**:
-   - PowerShell setup script to register `Ambiakshi_Daily_Maintenance` (Daily at **4:00 AM EST**), `Ambiakshi_Weekly_Audit` (Sundays at **3:00 AM EST**), and `Ambiakshi_Mobile_Games_Maintenance` (Daily at **5:00 AM EST**).
+5. **Phase 3: Production-Grade Disaster Recovery & Cold Backup Suite**:
+   - **Supabase Database Logical Backups (`npm run backup:supabase`)**: Automated table data extraction, gzip compression (`.json.gz`), SHA-256 integrity checksums, and 14-day retention pruning for all configured Supabase projects.
+   - **Git Repository Cold Escrow (`npm run backup:repos`)**: Native `git bundle` creation across all 12 ecosystem repositories (including `cortexcatalystweb`, `radhamahalingam360`, `rkaits`, `ambiakshi-coach`), verified with `git bundle verify` (zero `node_modules` bloat).
+   - **AES-256-GCM Encrypted Secrets Escrow (`npm run backup:secrets`)**: Safely captures and encrypts `.env.local` and credentials with automated roundtrip decryption validation.
+   - **Self-Pruning Housekeeping (`npm run housekeeping:prune`)**: Auto-rotates oversized log files (> 5MB) and prunes old audit reports (> 30 days).
+   - **Full Disaster Recovery Runner (`npm run backup:all`)**: Executes all 4 layers in a single 10-second pass with unified Discord reporting.
+
+6. **Automated Windows Task Scheduler**:
+   - PowerShell setup script to register:
+     - `Ambiakshi_Daily_Maintenance` (Daily at **4:00 AM EST**)
+     - `Ambiakshi_Weekly_Audit` (Sundays at **3:00 AM EST**)
+     - `Ambiakshi_Mobile_Games_Maintenance` (Daily at **5:00 AM EST**)
+     - `Ambiakshi_Disaster_Recovery_Backup` (Sundays at **2:00 AM EST**)
 
 ---
 

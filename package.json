@@ -17,7 +17,12 @@
     "audit:weekly": "tsx src/jobs/weekly-audit.ts",
     "maintenance:weekly": "tsx src/index.ts --mode=weekly",
     "maintenance:mobile": "tsx src/jobs/mobile-games-maintenance.ts",
-    "mobile:audit": "tsx src/index.ts --mode=mobile"
+    "mobile:audit": "tsx src/index.ts --mode=mobile",
+    "backup:supabase": "tsx src/jobs/supabase-backup.ts",
+    "backup:repos": "tsx src/jobs/repo-backup.ts",
+    "backup:secrets": "tsx -e \"import('./src/services/secret-escrow-service.js').then(m => m.SecretEscrowService.createSecretBackup().then(r => console.log(JSON.stringify(r, null, 2))))\"",
+    "backup:all": "tsx src/jobs/backup-all.ts",
+    "housekeeping:prune": "tsx -e \"import('./src/services/pruning-service.js').then(m => m.PruningService.runFullPruning().then(r => console.log(JSON.stringify(r, null, 2))))\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

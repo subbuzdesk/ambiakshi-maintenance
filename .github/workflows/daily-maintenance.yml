@@ -2,8 +2,8 @@ name: Ambiakshi Daily Maintenance & Keep-Alive
 
 on:
   schedule:
-    # Runs daily at 08:00 UTC (4:00 AM EDT / 3:00 AM EST)
-    - cron: '0 8 * * *'
+    # Runs daily at 08:17 UTC (4:17 AM EDT / 3:17 AM EST) - off-peak minute prevents GitHub queue delays
+    - cron: '17 8 * * *'
   workflow_dispatch:
     # Allows manual 1-click trigger from GitHub Actions tab
 

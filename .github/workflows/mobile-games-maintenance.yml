@@ -3,8 +3,8 @@ name: Ambiakshi Mobile Games Maintenance
 
 on:
   schedule:
-    # Runs daily at 09:00 UTC (5:00 AM EDT / 4:00 AM EST) - staggered from main daily maintenance
-    - cron: '0 9 * * *'
+    # Runs daily at 09:23 UTC (5:23 AM EDT / 4:23 AM EST) - staggered and off-peak
+    - cron: '23 9 * * *'
   workflow_dispatch:
     # Allows manual 1-click trigger from GitHub Actions tab
 

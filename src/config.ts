@@ -35,6 +35,13 @@ export interface MobileGameConfig {
   monitoredAssets?: string[];
 }
 
+export interface EcosystemRepo {
+  id: string;
+  name: string;
+  path: string;
+  description: string;
+}
+
 export interface AppConfig {
   rootDir: string;
   dataDir: string;
@@ -59,6 +66,13 @@ export interface AppConfig {
   sslExpiryWarningDays: number;
   monitoredDomains: string[];
   mobileGames: MobileGameConfig[];
+  backupDir: string;
+  backupSupabaseDir: string;
+  backupReposDir: string;
+  backupSecretsDir: string;
+  backupRetentionDays: number;
+  secretBackupPassphrase?: string;
+  ecosystemRepos: EcosystemRepo[];
 }
 
 const defaultSitemaps = [
@@ -73,6 +87,8 @@ const defaultMonitoredDomains = [
   "ambiakshi.com",
   "mobile.ambiakshi.com",
   "slm.ambiakshi.com",
+  "radhamahalingam360.com",
+  "rkaits.com",
 ];
 
 const defaultMobileGames: MobileGameConfig[] = [
@@ -122,6 +138,81 @@ const defaultMobileGames: MobileGameConfig[] = [
     monitoredAssets: [
       "https://mobile.ambiakshi.com/favicon.ico",
     ],
+  },
+];
+
+const defaultEcosystemRepos: EcosystemRepo[] = [
+  {
+    id: "ambiakshi-maintenance",
+    name: "Ambiakshi Maintenance Suite",
+    path: rootDir,
+    description: "Central automated housekeeping, GSC indexing, backup, and health monitoring",
+  },
+  {
+    id: "ambiakshi-home",
+    name: "Ambiakshi Home Platform",
+    path: path.resolve(rootDir, "..", "ambiakshi-home"),
+    description: "Main corporate web portal (ambiakshi.com)",
+  },
+  {
+    id: "ambiakshi-tools",
+    name: "Ambiakshi Tools",
+    path: path.resolve(rootDir, "..", "ambiakshi-tools"),
+    description: "67 in-browser privacy utilities and calculators (ambiakshi.tools)",
+  },
+  {
+    id: "ambiakshi-mobile",
+    name: "Ambiakshi Mobile Hub",
+    path: path.resolve(rootDir, "..", "ambiakshi-mobile"),
+    description: "Mobile web applications and game hub (mobile.ambiakshi.com)",
+  },
+  {
+    id: "ambiakshi-slm",
+    name: "Ambiakshi Sovereign SLM",
+    path: path.resolve(rootDir, "..", "ambiakshi-slm"),
+    description: "Financial sentiment SLM foundry and web portal (slm.ambiakshi.com)",
+  },
+  {
+    id: "promptcraft-mobile",
+    name: "PromptCraft Mobile",
+    path: path.resolve(rootDir, "..", "promptcraft-mobile"),
+    description: "Universal React Native + Expo mobile application suite",
+  },
+  {
+    id: "digitle-game",
+    name: "Digitle Game",
+    path: path.resolve(rootDir, "..", "digitle-game"),
+    description: "Enterprise cyber-vault number deduction logic game",
+  },
+  {
+    id: "vectoshift",
+    name: "Vectoshift",
+    path: path.resolve(rootDir, "..", "vectoshift"),
+    description: "2D vector physics puzzle odyssey game",
+  },
+  {
+    id: "cortexcatalystweb",
+    name: "CortexCatalyst Web",
+    path: path.resolve(rootDir, "..", "cortexcatalystweb"),
+    description: "High-performance Astro SSG modern platform for CortexCatalyst",
+  },
+  {
+    id: "radhamahalingam360",
+    name: "Radha Mahalingam 360",
+    path: path.resolve(rootDir, "..", "radhamahalingam360"),
+    description: "Executive leadership, coaching, and board advisory portfolio (radhamahalingam360.com)",
+  },
+  {
+    id: "rkaits",
+    name: "RKAI Tech Solutions",
+    path: path.resolve(rootDir, "..", "rkaits"),
+    description: "Astro SSG corporate web presence for RKAI Tech Solutions Inc (rkaits.com)",
+  },
+  {
+    id: "ambiakshi-coach",
+    name: "Ambiakshi Ledger Coach",
+    path: path.resolve(rootDir, "..", "ambiakshi-coach"),
+    description: "Coach-first Career OS and fact ledger engine",
   },
 ];
 
@@ -247,4 +338,11 @@ export const config: AppConfig = {
     ? process.env.MONITORED_DOMAINS.split(",").map((d) => d.trim())
     : defaultMonitoredDomains,
   mobileGames: defaultMobileGames,
+  backupDir: path.join(rootDir, "backups"),
+  backupSupabaseDir: path.join(rootDir, "backups", "supabase"),
+  backupReposDir: path.join(rootDir, "backups", "repos"),
+  backupSecretsDir: path.join(rootDir, "backups", "secrets"),
+  backupRetentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10),
+  secretBackupPassphrase: process.env.SECRET_BACKUP_PASSPHRASE,
+  ecosystemRepos: defaultEcosystemRepos,
 };
