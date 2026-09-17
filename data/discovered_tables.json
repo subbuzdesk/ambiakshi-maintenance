@@ -1,0 +1,93 @@
+{
+  "scannedAt": "2026-09-17T01:22:00Z",
+  "ecosystem": {
+    "ambiakshi-home": {
+      "repo": "subbuzdesk/ambiakshi-home",
+      "migrationFiles": ["supabase/migrations/20260828_feedback_telemetry.sql"],
+      "tables": [
+        {
+          "name": "feedback_submissions",
+          "schema": "public",
+          "purpose": "In-app and blueprint feedback tracking"
+        },
+        {
+          "name": "telemetry_events",
+          "schema": "public",
+          "purpose": "Ecosystem usage and event telemetry"
+        }
+      ]
+    },
+    "ambiakshi-tools": {
+      "repo": "subbuzdesk/ambiakshi-tools",
+      "migrationFiles": [
+        "migrations/0002_subscriptions.sql",
+        "migrations/auth/0001_auth.sql"
+      ],
+      "tables": [
+        {
+          "name": "subscriptions",
+          "schema": "public",
+          "purpose": "Pro plan and billing state"
+        },
+        {
+          "name": "user",
+          "schema": "public",
+          "purpose": "Better-auth user accounts"
+        },
+        {
+          "name": "session",
+          "schema": "public",
+          "purpose": "Active authentication sessions"
+        },
+        {
+          "name": "account",
+          "schema": "public",
+          "purpose": "OAuth and credentials accounts"
+        },
+        {
+          "name": "verification",
+          "schema": "public",
+          "purpose": "Email/token verification tokens"
+        },
+        {
+          "name": "_migrations",
+          "schema": "public",
+          "purpose": "Migration tracking ledger"
+        }
+      ]
+    },
+    "ambiakshi-slm": {
+      "repo": "subbuzdesk/ambiakshi-slm",
+      "migrationFiles": ["scripts/supabase_schema.sql"],
+      "tables": [
+        {
+          "name": "slm_user_profiles",
+          "schema": "public",
+          "purpose": "SLM user profiles and quotas"
+        },
+        {
+          "name": "slm_ticker_history",
+          "schema": "public",
+          "purpose": "Financial benchmark & ticker history"
+        },
+        {
+          "name": "slm_telemetry_feedback",
+          "schema": "public",
+          "purpose": "Model inference telemetry and user feedback"
+        }
+      ]
+    },
+    "ambiakshi-mobile": {
+      "repo": "subbuzdesk/ambiakshi-mobile",
+      "migrationFiles": [],
+      "tables": [],
+      "note": "Client-side offline-first PWA game suite; zero direct database tables."
+    }
+  },
+  "recommendedKeepAliveTables": [
+    "feedback_submissions",
+    "telemetry_events",
+    "slm_telemetry_feedback",
+    "_ambiakshi_heartbeat"
+  ]
+}
