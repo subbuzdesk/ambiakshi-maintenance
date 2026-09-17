@@ -1,50 +1,66 @@
 <#
 .SYNOPSIS
-  Registers the Ambiakshi Daily Maintenance Scheduled Task in Windows.
+  Registers Ambiakshi Scheduled Tasks in Windows Task Scheduler.
 .DESCRIPTION
-  Schedules scripts/run-daily-4am.bat to run every day at 04:00 AM EST.
+  Schedules:
+  1. Ambiakshi_Daily_Maintenance: Every day at 04:00 AM EST (scripts/run-daily-4am.bat)
+  2. Ambiakshi_Weekly_Audit: Every Sunday at 03:00 AM EST (scripts/run-weekly.bat)
 #>
 
 param(
-    [string]$Time = "04:00",
-    [string]$TaskName = "Ambiakshi_Daily_Maintenance"
+    [string]$DailyTime = "04:00",
+    [string]$WeeklyTime = "03:00",
+    [string]$TaskType = "all" # Options: all, daily, weekly
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Resolve-Path "$ScriptDir\.."
-$BatPath = Join-Path $ProjectRoot "scripts\run-daily-4am.bat"
+$DailyBatPath = Join-Path $ProjectRoot "scripts\run-daily-4am.bat"
+$WeeklyBatPath = Join-Path $ProjectRoot "scripts\run-weekly.bat"
 
-if (-not (Test-Path $BatPath)) {
-    Write-Error "Batch file not found at: $BatPath"
-    exit 1
+function Register-AmbiakshiTask {
+    param(
+        [string]$Name,
+        [string]$BatFilePath,
+        $Trigger,
+        [string]$Description
+    )
+
+    if (-not (Test-Path $BatFilePath)) {
+        Write-Error "Batch file not found: $BatFilePath"
+        return
+    }
+
+    Write-Host "`nRegistering Windows Scheduled Task: $Name"
+    Write-Host "Script: $BatFilePath"
+
+    $Action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$BatFilePath`""
+    $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+    try {
+        Unregister-ScheduledTask -TaskName $Name -Confirm:$false -ErrorAction SilentlyContinue
+        Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Trigger -Settings $Settings -Description $Description
+        Write-Host "✅ Task '$Name' registered successfully!" -ForegroundColor Green
+    } catch {
+        Write-Warning "Could not register using Register-ScheduledTask: $_"
+    }
 }
 
 Write-Host "================================================================="
-Write-Host "Registering Windows Scheduled Task: $TaskName"
-Write-Host "Schedule: Daily at $Time EST"
-Write-Host "Script:   $BatPath"
+Write-Host "  Ambiakshi Windows Task Scheduler Setup"
 Write-Host "================================================================="
 
-# Create Action
-$Action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$BatPath`""
-
-# Create Trigger (Daily at specified time)
-$Trigger = New-ScheduledTaskTrigger -Daily -At $Time
-
-# Create Settings
-$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-
-# Register or update task
-try {
-    # Unregister existing if present
-    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
-
-    Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Settings $Settings -Description "Ambiakshi daily ecosystem maintenance: GSC page indexing batch and Supabase keep-alive."
-    Write-Host "`nTask '$TaskName' registered successfully!" -ForegroundColor Green
-    Write-Host "To test run immediately: Start-ScheduledTask -TaskName `"$TaskName`""
-    Write-Host "To view task details:     Get-ScheduledTask -TaskName `"$TaskName`""
-} catch {
-    Write-Warning "Could not register using Register-ScheduledTask. Falling back to schtasks.exe..."
-    $SchCmd = "schtasks /create /tn `"$TaskName`" /tr `"cmd.exe /c \`"$BatPath\`"`" /sc daily /st $Time /f"
-    Invoke-Expression $SchCmd
+if ($TaskType -eq "all" -or $TaskType -eq "daily") {
+    $DailyTrigger = New-ScheduledTaskTrigger -Daily -At $DailyTime
+    Register-AmbiakshiTask -Name "Ambiakshi_Daily_Maintenance" -BatFilePath $DailyBatPath -Trigger $DailyTrigger -Description "Ambiakshi daily ecosystem maintenance: 200 URL indexing batch and Supabase keepalive."
 }
+
+if ($TaskType -eq "all" -or $TaskType -eq "weekly") {
+    $WeeklyTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At $WeeklyTime
+    Register-AmbiakshiTask -Name "Ambiakshi_Weekly_Audit" -BatFilePath $WeeklyBatPath -Trigger $WeeklyTrigger -Description "Ambiakshi weekly ecosystem audit: 100% catalog health, Supabase schema probe, and SSL audit."
+}
+
+Write-Host "`nAll scheduled tasks configured."
+Write-Host "To test run weekly audit: Start-ScheduledTask -TaskName 'Ambiakshi_Weekly_Audit'"
+Write-Host "To test run daily maintenance: Start-ScheduledTask -TaskName 'Ambiakshi_Daily_Maintenance'"
+

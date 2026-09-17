@@ -1,7 +1,9 @@
 import { runDailyMaintenance } from "./jobs/daily-maintenance.js";
+import { runWeeklyAudit } from "./jobs/weekly-audit.js";
 import { IndexingQueueManager } from "./services/indexing-queue.js";
 import { SupabaseKeepAliveService } from "./services/supabase-keepalive.js";
 import { SchemaInventoryService } from "./services/schema-inventory.js";
+import { SslCheckerService } from "./services/ssl-checker.js";
 import { config } from "./config.js";
 
 async function main() {
@@ -30,10 +32,22 @@ async function main() {
     }
 
     case "keepalive": {
-      console.log(`Running standalone Supabase Keep-Alive check...`);
+      console.log(`Running Supabase Keep-Alive check across all configured projects...`);
       const keepalive = new SupabaseKeepAliveService();
-      const res = await keepalive.executeHeartbeat();
-      console.log(`Result:`, res);
+      const results = await keepalive.executeAllHeartbeats();
+
+      console.log(`\n========================================================`);
+      console.log(`  Supabase Keep-Alive Results (${results.length} Project${results.length === 1 ? "" : "s"})`);
+      console.log(`========================================================`);
+      for (const res of results) {
+        console.log(`\nProject: ${res.projectName || res.projectId || "Supabase"}`);
+        console.log(`  Status:    ${res.success ? "✅ Active" : "❌ Failed"}`);
+        console.log(`  Latency:   ${res.durationMs}ms`);
+        console.log(`  Table:     ${res.table}`);
+        console.log(`  Operation: ${res.operation}`);
+        console.log(`  Message:   ${res.message}`);
+      }
+      console.log(`\n========================================================\n`);
       break;
     }
 
@@ -80,15 +94,49 @@ async function main() {
         }
       }
 
-      console.log(`\nProbing live Supabase database for detected tables...`);
+      // Add all live ecosystem tables from Supabase Home & Tools
+      [
+        // Home DB tables
+        "consultation_leads",
+        "feedback_submissions",
+        "slm_telemetry_feedback",
+        "slm_ticker_history",
+        "slm_user_profiles",
+        "subscribers",
+        "telemetry_events",
+        // Tools DB tables
+        "subscriptions",
+        "user",
+        "session",
+        "account",
+        "verification",
+      ].forEach((t) => allDetectedTables.add(t));
+
+      console.log(`\nProbing live Supabase databases for ${allDetectedTables.size} detected tables...`);
       if (allDetectedTables.size > 0) {
         const probeResults = await SchemaInventoryService.probeLiveTables(
           Array.from(allDetectedTables)
         );
+
+        const byProject = new Map<string, typeof probeResults>();
         for (const p of probeResults) {
-          console.log(
-            `  - Table '${p.tableName}': ${p.accessible ? `Accessible (${p.rowCountEstimate} rows)` : `Error: ${p.status}`}`
-          );
+          const key = p.projectName || p.projectId || "Supabase";
+          if (!byProject.has(key)) byProject.set(key, []);
+          byProject.get(key)!.push(p);
+        }
+
+        for (const [proj, list] of byProject.entries()) {
+          console.log(`\n========================================================`);
+          console.log(`  Database Schema Inventory: ${proj}`);
+          console.log(`========================================================`);
+          const accessible = list.filter((p) => p.accessible);
+          if (accessible.length > 0) {
+            for (const p of accessible) {
+              console.log(`  ✅ Table '${p.tableName}': Accessible (${p.rowCountEstimate} rows)`);
+            }
+          } else {
+            console.log(`  No matching tables detected in this project schema.`);
+          }
         }
       } else {
         console.log(`  No candidate tables detected from local files yet.`);
@@ -96,9 +144,31 @@ async function main() {
       break;
     }
 
+    case "weekly":
+    case "audit": {
+      console.log(`Starting Weekly Comprehensive Ecosystem Health Audit...`);
+      await runWeeklyAudit();
+      break;
+    }
+
+    case "ssl": {
+      console.log(`\nInspecting SSL certificate expiry across ecosystem domains...`);
+      const sslResults = await SslCheckerService.checkAllDomains();
+      console.log(`\n========================================================`);
+      console.log(`  SSL Certificate Expiry Status`);
+      console.log(`========================================================`);
+      for (const s of sslResults) {
+        console.log(
+          `  - ${s.domain.padEnd(26)}: ${s.status === "HEALTHY" ? "✅ Valid" : "⚠️ " + s.status} (${s.daysRemaining ?? "?"} days remaining, Valid to: ${s.validTo || "N/A"})`
+        );
+      }
+      console.log(`========================================================\n`);
+      break;
+    }
+
     default:
       console.log(`Unknown mode: ${modeArg}`);
-      console.log(`Available modes: daily, indexing, keepalive, status, inventory`);
+      console.log(`Available modes: daily, weekly, indexing, keepalive, status, inventory, ssl`);
       process.exit(1);
   }
 }

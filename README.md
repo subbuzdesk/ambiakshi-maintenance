@@ -17,17 +17,21 @@ Automated housekeeping, Google Search Console (GSC) batch indexing, ecosystem he
    - **Live HTTP Diagnostic**: Checks HTTP 200 vs 40x, response latency, `<meta name="robots">` `noindex` directives, and canonical tags.
    - **Google Indexing API Integration**: Submits batch `URL_UPDATED` notifications directly to Google when Google Cloud service account credentials are provided.
 
-2. **Supabase Inactivity Prevention (Keep-Alive)**:
+2. **Weekly Comprehensive Health Audit (Sundays at 3:00 AM EST)**:
+   - **100% Full-Catalog Health Crawl**: Bypasses the 200 daily quota and verifies every single URL in the catalog in one comprehensive sweep.
+   - **Multi-Repository Schema & Storage Inventory**: Scans migration files across `ambiakshi-home`, `ambiakshi-tools`, `ambiakshi-slm`, and `ambiakshi-mobile`, probing row counts and accessibility of live database tables.
+   - **SSL Certificate Expiration Matrix**: Inspects TLS certificates across all ecosystem domains (`ambiakshi.tools`, `ambiakshi.com`, `mobile.ambiakshi.com`, `slm.ambiakshi.com`), warning if any certificate expires in under 30 days.
+   - **Sitemap Drift Reconciliation**: Tracks additions and deletions to maintain catalog integrity.
+   - **Discord Executive Digest**: Dispatches rich status embed cards with health scores and priority action items.
+   - **Comprehensive Weekly Markdown Report**: Generates `reports/audits/YYYY-MM-DD-weekly-audit.md`.
+
+3. **Supabase Inactivity Prevention (Keep-Alive)**:
    - Prevents Supabase free tier projects from automatically pausing after 7 days of inactivity.
    - Executes an automated daily heartbeat that connects, inserts a dummy row, confirms active write activity, and deletes the dummy row immediately.
    - Includes full restoration documentation and API hooks to unpause a suspended database.
 
-3. **Multi-Repository Table Inventory**:
-   - Analyzes migration files and table schemas across `ambiakshi-home`, `ambiakshi-tools`, `ambiakshi-slm`, and `ambiakshi-mobile`.
-   - Probes live Supabase connectivity and row counts across discovered tables.
-
 4. **Automated Windows Task Scheduler**:
-   - PowerShell setup script to register `Ambiakshi_Daily_Maintenance` at **4:00 AM EST** daily.
+   - PowerShell setup script to register `Ambiakshi_Daily_Maintenance` (Daily at **4:00 AM EST**) and `Ambiakshi_Weekly_Audit` (Sundays at **3:00 AM EST**).
 
 ---
 
@@ -45,26 +49,31 @@ ambiakshi-maintenance/
 │   ├── indexing_state.json            # Persistent queue and URL check histories
 │   └── sitemaps_cache.json            # Cached XML sitemaps
 ├── logs/
-│   └── daily_run.log                  # Windows Task Scheduler execution logs
+│   ├── daily_run.log                  # Windows Task Scheduler daily execution logs
+│   └── weekly_run.log                 # Windows Task Scheduler weekly audit logs
 ├── reports/
 │   ├── indexing/                      # Daily markdown run logs (e.g. 2026-09-17-daily-run.md)
 │   └── audits/                        # Weekly comprehensive audit reports
 ├── scripts/
-│   ├── run-daily-4am.bat              # Batch runner for Task Scheduler
-│   ├── run-daily-4am.ps1              # PowerShell runner
-│   └── setup-windows-task.ps1         # Registers the 4:00 AM EST Windows Task
+│   ├── run-daily-4am.bat              # Batch runner for daily task
+│   ├── run-daily-4am.ps1              # PowerShell runner for daily task
+│   ├── run-weekly.bat                 # Batch runner for Sunday weekly audit
+│   ├── run-weekly.ps1                 # PowerShell runner for Sunday weekly audit
+│   └── setup-windows-task.ps1         # Registers both Daily & Weekly Windows Tasks
 └── src/
     ├── config.ts                      # Configuration loader
     ├── index.ts                       # Unified CLI entry point
     ├── jobs/
     │   ├── daily-maintenance.ts       # Daily orchestrator (Indexing + Keepalive)
-    │   └── weekly-audit.ts            # Weekly full ecosystem audit
+    │   └── weekly-audit.ts            # Weekly full ecosystem audit (100% crawl, SSL, DB probe)
     └── services/
         ├── sitemap-fetcher.ts         # Live XML sitemap parser
         ├── indexing-queue.ts          # State engine & failure-first prioritization
         ├── gsc-indexer.ts             # Live HTTP checks + Google Indexing API
         ├── supabase-keepalive.ts      # Dummy row insertion & deletion lifecycle
-        └── schema-inventory.ts        # Table cataloger across repos
+        ├── schema-inventory.ts        # Table cataloger across repos
+        ├── ssl-checker.ts             # SSL certificate expiration & security monitor
+        └── discord-notifier.ts        # Rich Discord webhook executive digests
 ```
 
 ---
@@ -93,6 +102,12 @@ SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 SUPABASE_HEARTBEAT_TABLE=_ambiakshi_heartbeat
 SUPABASE_DELETE_DUMMY_ROW_AFTER_INSERT=true
+
+# 3. Discord Weekly Digest & Alert Webhook (Optional)
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-id/your-token
+
+# 4. SSL & Domain Monitoring
+SSL_EXPIRY_WARNING_DAYS=30
 ```
 
 ---
@@ -116,12 +131,9 @@ Supabase pauses free projects after **7 days without database requests or API ca
           -H "Content-Type: application/json"
      ```
 
-### How This Repo Prevents Future Inactivity
-The daily 4:00 AM worker executes:
-1. `supabase.from(TABLE).insert([{ name: "Heartbeat...", metadata: {...} }])`
-2. Confirms active write response.
-3. Immediately executes `.delete()` on the inserted dummy record.
-4. Logs the database latency and timestamp.
+### How This Suite Prevents Future Inactivity
+- **Daily 4:00 AM Routine**: Performs a lightweight write/delete ping (`_ambiakshi_heartbeat`), registering active database compute.
+- **Weekly 3:00 AM Audit**: Runs multi-table schema inspection across discovered repositories (`consultation_leads`, `subscribers`, `feedback_submissions`, etc.), monitoring row counts and database reachability.
 
 ---
 
@@ -144,18 +156,22 @@ To enable direct indexing submissions to Google:
 | Command | Description |
 | :--- | :--- |
 | `npm run maintenance:daily` | Runs full daily routine: fetches sitemaps, inspects 200 URLs with failure prioritization, publishes to Google, and triggers Supabase keepalive. |
+| `npm run maintenance:weekly` | Executes full weekly audit: 100% catalog health crawl, deep Supabase schema probe, SSL cert expiry sweep, and Discord digest. |
+| `npm run audit:weekly` | Direct alias for the weekly comprehensive audit job. |
+| `npm run audit:ssl` | Inspects SSL certificate expiration countdown across all ecosystem domains. |
 | `npm run index:daily` | Runs the 200-URL indexing batch only. |
 | `npm run index:all` | Runs a complete pass across all ~231 ecosystem URLs. |
 | `npm run index:status` | Displays queue metrics, 200 OK counts, failing 40x URLs, and estimated full cycle days. |
 | `npm run supabase:keepalive` | Runs a standalone Supabase heartbeat dummy insert/delete. |
 | `npm run supabase:inventory` | Scans adjacent local Git repositories (`ambiakshi-home`, `ambiakshi-tools`, etc.) and probes table counts. |
-| `npm run audit:weekly` | Generates a comprehensive weekly audit markdown report. |
 
 ---
 
 ## Automated Scheduling: Windows Task Scheduler
 
-To configure the task to run automatically every day at **4:00 AM EST**:
+To configure the tasks to run automatically:
+- **Daily Maintenance**: Every day at **4:00 AM EST**
+- **Weekly Audit**: Every Sunday at **3:00 AM EST**
 
 1. Open PowerShell as Administrator.
 2. Run:
@@ -163,8 +179,15 @@ To configure the task to run automatically every day at **4:00 AM EST**:
    cd C:\Users\subbu\OneDrive\Documents\git\ambiakshi-maintenance
    powershell -ExecutionPolicy Bypass -File scripts\setup-windows-task.ps1
    ```
-3. To test run the task immediately:
+3. To test run either task immediately:
    ```powershell
+   # Test Sunday weekly audit
+   Start-ScheduledTask -TaskName "Ambiakshi_Weekly_Audit"
+
+   # Test Daily maintenance
    Start-ScheduledTask -TaskName "Ambiakshi_Daily_Maintenance"
    ```
-4. Check `logs\daily_run.log` or `reports\indexing\` to inspect output!
+4. Output logs are written to:
+   - Daily runs: `logs\daily_run.log` and `reports\indexing\YYYY-MM-DD-daily-run.md`
+   - Weekly audits: `logs\weekly_run.log` and `reports\audits\YYYY-MM-DD-weekly-audit.md`
+

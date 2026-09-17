@@ -13,7 +13,9 @@
     "index:status": "tsx src/index.ts --mode=status",
     "supabase:keepalive": "tsx src/index.ts --mode=keepalive",
     "supabase:inventory": "tsx src/index.ts --mode=inventory",
-    "audit:weekly": "tsx src/jobs/weekly-audit.ts"
+    "audit:ssl": "tsx src/index.ts --mode=ssl",
+    "audit:weekly": "tsx src/jobs/weekly-audit.ts",
+    "maintenance:weekly": "tsx src/index.ts --mode=weekly"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

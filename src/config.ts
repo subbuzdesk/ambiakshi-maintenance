@@ -6,8 +6,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 
-// Load .env from project root
+// Load .env.local first (local overrides), then fall back to .env
+dotenv.config({ path: path.join(rootDir, ".env.local") });
 dotenv.config({ path: path.join(rootDir, ".env") });
+
+export interface SupabaseProject {
+  id: string;
+  name: string;
+  url: string;
+  serviceRoleKey: string;
+  anonKey: string;
+  heartbeatTable: string;
+  deleteDummyAfterInsert: boolean;
+  managementToken?: string;
+}
 
 export interface AppConfig {
   rootDir: string;
@@ -19,6 +31,8 @@ export interface AppConfig {
   dailyQuota: number;
   sitemaps: string[];
   supabase: {
+    projects: SupabaseProject[];
+    // Single project backward compatibility
     url: string;
     serviceRoleKey: string;
     anonKey: string;
@@ -26,6 +40,9 @@ export interface AppConfig {
     deleteDummyAfterInsert: boolean;
     managementToken?: string;
   };
+  discordWebhookUrl?: string;
+  sslExpiryWarningDays: number;
+  monitoredDomains: string[];
 }
 
 const defaultSitemaps = [
@@ -34,6 +51,103 @@ const defaultSitemaps = [
   "https://ambiakshi.com/sitemap.xml",
   "https://slm.ambiakshi.com/sitemap.xml",
 ];
+
+const defaultMonitoredDomains = [
+  "www.ambiakshi.tools",
+  "ambiakshi.com",
+  "mobile.ambiakshi.com",
+  "slm.ambiakshi.com",
+];
+
+// Helper to discover all configured Supabase projects
+function getSupabaseProjects(): SupabaseProject[] {
+  const projects: SupabaseProject[] = [];
+
+  // 1. Ambiakshi Tools Database
+  const toolsUrl = process.env.SUPABASE_TOOLS_URL || (process.env.SUPABASE_URL?.includes("aglvpztrnfaaxtjdajoh") ? process.env.SUPABASE_URL : undefined);
+  if (toolsUrl) {
+    projects.push({
+      id: "tools",
+      name: "Ambiakshi Tools Database (aglvpztrnfaaxtjdajoh)",
+      url: toolsUrl,
+      serviceRoleKey:
+        process.env.SUPABASE_TOOLS_SECRET_KEY ||
+        process.env.SUPABASE_TOOLS_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_TOOLS_KEY ||
+        process.env.SUPABASE_SECRET_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        "",
+      anonKey:
+        process.env.SUPABASE_TOOLS_PUBLISHABLE_KEY ||
+        process.env.SUPABASE_TOOLS_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        "",
+      heartbeatTable:
+        process.env.SUPABASE_TOOLS_HEARTBEAT_TABLE ||
+        process.env.SUPABASE_HEARTBEAT_TABLE ||
+        "_ambiakshi_heartbeat",
+      deleteDummyAfterInsert:
+        process.env.SUPABASE_DELETE_DUMMY_ROW_AFTER_INSERT !== "false",
+      managementToken:
+        process.env.SUPABASE_TOOLS_MANAGEMENT_TOKEN ||
+        process.env.SUPABASE_MANAGEMENT_TOKEN,
+    });
+  }
+
+  // 2. Ambiakshi Home Database
+  const homeUrl = process.env.SUPABASE_HOME_URL || (process.env.SUPABASE_URL?.includes("issffykfczwktwxitxxy") ? process.env.SUPABASE_URL : undefined);
+  if (homeUrl) {
+    projects.push({
+      id: "home",
+      name: "Ambiakshi Home Database (issffykfczwktwxitxxy)",
+      url: homeUrl,
+      serviceRoleKey:
+        process.env.SUPABASE_HOME_SECRET_KEY ||
+        process.env.SUPABASE_HOME_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_HOME_KEY ||
+        "",
+      anonKey:
+        process.env.SUPABASE_HOME_PUBLISHABLE_KEY ||
+        process.env.SUPABASE_HOME_ANON_KEY ||
+        "",
+      heartbeatTable:
+        process.env.SUPABASE_HOME_HEARTBEAT_TABLE ||
+        process.env.SUPABASE_HEARTBEAT_TABLE ||
+        "_ambiakshi_heartbeat",
+      deleteDummyAfterInsert:
+        process.env.SUPABASE_DELETE_DUMMY_ROW_AFTER_INSERT !== "false",
+      managementToken:
+        process.env.SUPABASE_HOME_MANAGEMENT_TOKEN ||
+        process.env.SUPABASE_MANAGEMENT_TOKEN,
+    });
+  }
+
+  // 3. Fallback generic single project
+  const genericUrl = process.env.SUPABASE_URL;
+  if (genericUrl && !projects.some((p) => p.url === genericUrl)) {
+    projects.push({
+      id: "primary",
+      name: "Primary Supabase Database",
+      url: genericUrl,
+      serviceRoleKey:
+        process.env.SUPABASE_SECRET_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        "",
+      anonKey:
+        process.env.SUPABASE_PUBLISHABLE_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
+        "",
+      heartbeatTable: process.env.SUPABASE_HEARTBEAT_TABLE || "_ambiakshi_heartbeat",
+      deleteDummyAfterInsert: process.env.SUPABASE_DELETE_DUMMY_ROW_AFTER_INSERT !== "false",
+      managementToken: process.env.SUPABASE_MANAGEMENT_TOKEN,
+    });
+  }
+
+  return projects;
+}
+
+const configuredProjects = getSupabaseProjects();
+const primaryProject = configuredProjects[0];
 
 export const config: AppConfig = {
   rootDir,
@@ -49,11 +163,17 @@ export const config: AppConfig = {
     ? process.env.MONITORED_SITEMAPS.split(",").map((s) => s.trim())
     : defaultSitemaps,
   supabase: {
-    url: process.env.SUPABASE_URL || "",
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-    anonKey: process.env.SUPABASE_ANON_KEY || "",
-    heartbeatTable: process.env.SUPABASE_HEARTBEAT_TABLE || "_ambiakshi_heartbeat",
+    projects: configuredProjects,
+    url: primaryProject?.url || process.env.SUPABASE_URL || "",
+    serviceRoleKey: primaryProject?.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    anonKey: primaryProject?.anonKey || process.env.SUPABASE_ANON_KEY || "",
+    heartbeatTable: primaryProject?.heartbeatTable || process.env.SUPABASE_HEARTBEAT_TABLE || "_ambiakshi_heartbeat",
     deleteDummyAfterInsert: process.env.SUPABASE_DELETE_DUMMY_ROW_AFTER_INSERT !== "false",
-    managementToken: process.env.SUPABASE_MANAGEMENT_TOKEN,
+    managementToken: primaryProject?.managementToken || process.env.SUPABASE_MANAGEMENT_TOKEN,
   },
+  discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL?.trim() || undefined,
+  sslExpiryWarningDays: parseInt(process.env.SSL_EXPIRY_WARNING_DAYS || "30", 10),
+  monitoredDomains: process.env.MONITORED_DOMAINS
+    ? process.env.MONITORED_DOMAINS.split(",").map((d) => d.trim())
+    : defaultMonitoredDomains,
 };

@@ -20,6 +20,7 @@ export interface DailyRunReport {
     gscFailed: number;
   };
   supabaseResult?: KeepAliveResult;
+  supabaseResults?: KeepAliveResult[];
   queueStats: ReturnType<IndexingQueueManager["getStats"]>;
 }
 
@@ -134,15 +135,18 @@ export async function runDailyMaintenance(customQuota?: number): Promise<DailyRu
   );
 
   // 5. Supabase Keep-Alive
-  console.log(`\n[Step 4/5] Executing Supabase Keep-Alive heartbeat...`);
-  let supabaseResult: KeepAliveResult | undefined;
-  if (config.supabase.url && (config.supabase.serviceRoleKey || config.supabase.anonKey)) {
-    const keepalive = new SupabaseKeepAliveService();
-    supabaseResult = await keepalive.executeHeartbeat();
-    console.log(`Supabase status: ${supabaseResult.message}`);
+  console.log(`\n[Step 4/5] Executing Supabase Keep-Alive heartbeat across configured projects...`);
+  const keepalive = new SupabaseKeepAliveService();
+  const supabaseResults = await keepalive.executeAllHeartbeats();
+  const supabaseResult = supabaseResults[0];
+
+  if (supabaseResults.length > 0) {
+    for (const r of supabaseResults) {
+      console.log(`  - [${r.projectName || r.projectId || "Supabase"}]: ${r.success ? "✅ Active" : "❌ Failed"} (${r.durationMs}ms) - ${r.message}`);
+    }
   } else {
     console.log(
-      `Supabase keep-alive skipped: SUPABASE_URL / keys not configured in .env.`
+      `Supabase keep-alive skipped: No Supabase URLs / keys configured in .env.`
     );
   }
 
@@ -170,6 +174,7 @@ export async function runDailyMaintenance(customQuota?: number): Promise<DailyRu
       gscFailed,
     },
     supabaseResult,
+    supabaseResults,
     queueStats,
   });
 
@@ -193,12 +198,14 @@ export async function runDailyMaintenance(customQuota?: number): Promise<DailyRu
       gscFailed,
     },
     supabaseResult,
+    supabaseResults,
     queueStats,
   };
 }
 
 function generateReportMarkdown(data: DailyRunReport): string {
   const errors = data.results.filter((r) => !r.isOk);
+  const dbResults = data.supabaseResults || (data.supabaseResult ? [data.supabaseResult] : []);
 
   return `# Ambiakshi Daily Maintenance Report: ${data.timestamp.split("T")[0]}
 
@@ -223,14 +230,15 @@ function generateReportMarkdown(data: DailyRunReport): string {
 
 ## 2. Supabase Keep-Alive Status
 
-- **Configured**: ${data.supabaseResult ? "Yes" : "Pending .env setup"}
 ${
-  data.supabaseResult
-    ? `- **Status**: ${data.supabaseResult.success ? "✅ Active" : "❌ Failed"}
-- **Operation**: \`${data.supabaseResult.operation}\` on table \`${data.supabaseResult.table}\`
-- **Latency**: \`${data.supabaseResult.durationMs}ms\`
-- **Details**: ${data.supabaseResult.message}`
-    : "- *Note: Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to `.env` to enable automated daily keepalive heartbeat.*"
+  dbResults.length > 0
+    ? dbResults
+        .map(
+          (r) =>
+            `- **${r.projectName || r.projectId || "Supabase"}**: ${r.success ? "✅ Active" : "❌ Failed"} (\`${r.durationMs}ms\` on \`${r.table}\`)\n  *Details*: ${r.message}`
+        )
+        .join("\n\n")
+    : "- *Note: Configure Supabase credentials in `.env.local` to enable automated daily keepalive heartbeat.*"
 }
 
 ---

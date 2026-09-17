@@ -12,6 +12,8 @@ export interface RepoSchemaInfo {
 
 export interface LiveTableInfo {
   tableName: string;
+  projectId?: string;
+  projectName?: string;
   rowCountEstimate?: number;
   accessible: boolean;
   status: string;
@@ -93,43 +95,73 @@ export class SchemaInventoryService {
   }
 
   /**
-   * Probe Supabase database to test accessibility of candidate tables
+   * Probe Supabase databases across all configured projects to test accessibility of candidate tables
    */
   static async probeLiveTables(candidateTables: string[]): Promise<LiveTableInfo[]> {
-    const key = config.supabase.serviceRoleKey || config.supabase.anonKey;
-    if (!config.supabase.url || !key) {
+    const projects = config.supabase.projects.length > 0
+      ? config.supabase.projects
+      : config.supabase.url && (config.supabase.serviceRoleKey || config.supabase.anonKey)
+      ? [{
+          id: "primary",
+          name: "Primary Database",
+          url: config.supabase.url,
+          serviceRoleKey: config.supabase.serviceRoleKey,
+          anonKey: config.supabase.anonKey,
+          heartbeatTable: config.supabase.heartbeatTable,
+          deleteDummyAfterInsert: config.supabase.deleteDummyAfterInsert,
+        }]
+      : [];
+
+    if (projects.length === 0) {
       return [];
     }
 
-    const supabase = createClient(config.supabase.url, key);
     const results: LiveTableInfo[] = [];
 
-    for (const table of candidateTables) {
-      try {
-        const { count, error } = await supabase
-          .from(table)
-          .select("*", { count: "exact", head: true });
+    for (const project of projects) {
+      const key = project.serviceRoleKey || project.anonKey;
+      if (!project.url || !key) continue;
 
-        if (error) {
-          results.push({
-            tableName: table,
-            accessible: false,
-            status: error.message,
-          });
-        } else {
-          results.push({
-            tableName: table,
-            rowCountEstimate: count ?? 0,
-            accessible: true,
-            status: "200 OK",
-          });
+      try {
+        const supabase = createClient(project.url, key, { auth: { persistSession: false } });
+
+        for (const table of candidateTables) {
+          try {
+            const { count, error } = await supabase
+              .from(table)
+              .select("*", { count: "exact" })
+              .limit(1);
+
+            if (error) {
+              results.push({
+                tableName: table,
+                projectId: project.id,
+                projectName: project.name,
+                accessible: false,
+                status: error.message,
+              });
+            } else {
+              results.push({
+                tableName: table,
+                projectId: project.id,
+                projectName: project.name,
+                rowCountEstimate: count ?? 0,
+                accessible: true,
+                status: "200 OK",
+              });
+            }
+          } catch (err: any) {
+            results.push({
+              tableName: table,
+              projectId: project.id,
+              projectName: project.name,
+              accessible: false,
+              status: err?.message || String(err),
+            });
+          }
         }
       } catch (err: any) {
-        results.push({
-          tableName: table,
-          accessible: false,
-          status: err?.message || String(err),
-        });
+        console.warn(`Could not connect to project '${project.name}':`, err.message || err);
       }
     }
 

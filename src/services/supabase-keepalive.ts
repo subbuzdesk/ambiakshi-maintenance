@@ -1,10 +1,12 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { config } from "../config.js";
+import { config, SupabaseProject } from "../config.js";
 
 export interface KeepAliveResult {
   success: boolean;
   timestamp: string;
   durationMs: number;
+  projectId?: string;
+  projectName?: string;
   table: string;
   operation: string;
   insertedId?: string;
@@ -14,22 +16,24 @@ export interface KeepAliveResult {
 }
 
 export class SupabaseKeepAliveService {
-  private client: SupabaseClient | null = null;
+  private clients: Map<string, SupabaseClient> = new Map();
 
-  private getClient(): SupabaseClient {
-    if (this.client) return this.client;
+  private getClientForProject(project: SupabaseProject): SupabaseClient {
+    const cached = this.clients.get(project.id);
+    if (cached) return cached;
 
-    const key = config.supabase.serviceRoleKey || config.supabase.anonKey;
-    if (!config.supabase.url || !key) {
+    const key = project.serviceRoleKey || project.anonKey;
+    if (!project.url || !key) {
       throw new Error(
-        "Supabase credentials not set in .env. Please configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY."
+        `Supabase credentials not configured for project '${project.name}'. Please set URL and service/anon key.`
       );
     }
 
-    this.client = createClient(config.supabase.url, key, {
+    const client = createClient(project.url, key, {
       auth: { persistSession: false },
     });
-    return this.client;
+    this.clients.set(project.id, client);
+    return client;
   }
 
   /**
@@ -69,33 +73,91 @@ export class SupabaseKeepAliveService {
   }
 
   /**
-   * Execute the daily keep-alive heartbeat:
-   * 1. Inserts a dummy row
-   * 2. Confirms active write
-   * 3. Deletes the dummy row immediately
+   * Execute keep-alive heartbeat on a single project or table
    */
-  async executeHeartbeat(tableName?: string): Promise<KeepAliveResult> {
-    const table = tableName || config.supabase.heartbeatTable;
+  async executeHeartbeat(
+    target?: SupabaseProject | string
+  ): Promise<KeepAliveResult> {
+    let project: SupabaseProject;
+    let customTable: string | undefined;
+
+    if (typeof target === "string") {
+      customTable = target;
+      project = config.supabase.projects[0] || {
+        id: "primary",
+        name: "Primary Database",
+        url: config.supabase.url,
+        serviceRoleKey: config.supabase.serviceRoleKey,
+        anonKey: config.supabase.anonKey,
+        heartbeatTable: customTable || config.supabase.heartbeatTable,
+        deleteDummyAfterInsert: config.supabase.deleteDummyAfterInsert,
+      };
+    } else if (target) {
+      project = target;
+    } else {
+      project = config.supabase.projects[0] || {
+        id: "primary",
+        name: "Primary Database",
+        url: config.supabase.url,
+        serviceRoleKey: config.supabase.serviceRoleKey,
+        anonKey: config.supabase.anonKey,
+        heartbeatTable: config.supabase.heartbeatTable,
+        deleteDummyAfterInsert: config.supabase.deleteDummyAfterInsert,
+      };
+    }
+
+    const table = customTable || project.heartbeatTable || "_ambiakshi_heartbeat";
     const start = Date.now();
     const timestamp = new Date().toISOString();
     const dummyId = `ping_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     try {
-      const supabase = this.getClient();
+      const supabase = this.getClientForProject(project);
 
       // Test general connectivity / table presence
       const pingTest = await supabase.from(table).select("*").limit(1);
 
       if (pingTest.error) {
-        // If table doesn't exist, we provide clear guidance or try fallback table
+        // Tailor fallback candidates to the specific project schema
+        const candidateFallbacks =
+          project.id === "tools" || project.url?.includes("aglvpztrnfaaxtjdajoh")
+            ? ["subscriptions", "user", "session", "account", "verification"]
+            : ["feedback_submissions", "telemetry_events", "consultation_leads", "subscribers", "slm_ticker_history"];
+
+        for (const candidate of candidateFallbacks) {
+          try {
+            const fallbackTest = await supabase
+              .from(candidate)
+              .select("*", { count: "exact" })
+              .limit(1);
+            if (!fallbackTest.error) {
+              return {
+                success: true,
+                timestamp,
+                durationMs: Date.now() - start,
+                projectId: project.id,
+                projectName: project.name,
+                table: candidate,
+                operation: "FALLBACK_TABLE_PROBE",
+                deleted: false,
+                message: `[${project.name}] Heartbeat table '${table}' missing, but active table probe on '${candidate}' succeeded (${fallbackTest.count ?? 0} rows). Database registered active compute.`,
+              };
+            }
+          } catch {
+            // continue probing next candidate
+          }
+        }
+
         return {
           success: false,
           timestamp,
           durationMs: Date.now() - start,
+          projectId: project.id,
+          projectName: project.name,
           table,
           operation: "CONNECTIVITY_CHECK",
           deleted: false,
-          message: `Supabase reached, but table '${table}' returned error: ${pingTest.error.message}. (If table doesn't exist yet, create it or specify an existing table name in .env SUPABASE_HEARTBEAT_TABLE)`,
+          message: `[${project.name}] Supabase reached, but table '${table}' returned error: ${pingTest.error.message}.`,
           error: pingTest.error.message,
         };
       }
@@ -112,20 +174,21 @@ export class SupabaseKeepAliveService {
         },
       };
 
-      // Try inserting with dummy payload
       const insertRes = await supabase.from(table).insert([payload]).select();
 
       if (insertRes.error) {
-        // If schema doesn't have name/metadata columns, try a generic single column or ping
-        const fallbackRes = await supabase.from(table).select("count", { count: "exact", head: true });
+        // Ping read fallback
+        await supabase.from(table).select("count", { count: "exact", head: true });
         return {
           success: true,
           timestamp,
           durationMs: Date.now() - start,
+          projectId: project.id,
+          projectName: project.name,
           table,
           operation: "DATABASE_PING_READ",
           deleted: false,
-          message: `Write rejected by schema constraint (${insertRes.error.message}), but database ping registered active query activity successfully.`,
+          message: `[${project.name}] Write rejected by schema constraint (${insertRes.error.message}), but database ping registered active query activity successfully.`,
         };
       }
 
@@ -134,7 +197,7 @@ export class SupabaseKeepAliveService {
 
       // Step 2: Delete dummy row if configured
       let deleted = false;
-      if (config.supabase.deleteDummyAfterInsert) {
+      if (project.deleteDummyAfterInsert) {
         let deleteQuery = supabase.from(table).delete();
         if (inserted?.id !== undefined) {
           deleteQuery = deleteQuery.eq("id", inserted.id);
@@ -150,11 +213,13 @@ export class SupabaseKeepAliveService {
         success: true,
         timestamp,
         durationMs: Date.now() - start,
+        projectId: project.id,
+        projectName: project.name,
         table,
         operation: "INSERT_AND_DELETE_DUMMY_ROW",
         insertedId: String(rowId),
         deleted,
-        message: `Successfully inserted dummy row (ID: ${rowId}) and ${
+        message: `[${project.name}] Successfully inserted dummy row (ID: ${rowId}) and ${
           deleted ? "deleted it immediately" : "retained it"
         }. Database marked active.`,
       };
@@ -163,12 +228,34 @@ export class SupabaseKeepAliveService {
         success: false,
         timestamp,
         durationMs: Date.now() - start,
+        projectId: project.id,
+        projectName: project.name,
         table,
         operation: "HEARTBEAT_FAILED",
         deleted: false,
-        message: `Heartbeat execution failed: ${err.message || String(err)}`,
+        message: `[${project.name}] Heartbeat failed: ${err.message || String(err)}`,
         error: err.message || String(err),
       };
     }
+  }
+
+  /**
+   * Execute keep-alive heartbeats across all configured Supabase projects
+   */
+  async executeAllHeartbeats(): Promise<KeepAliveResult[]> {
+    const projects = config.supabase.projects;
+    if (projects.length === 0) {
+      if (config.supabase.url && (config.supabase.serviceRoleKey || config.supabase.anonKey)) {
+        return [await this.executeHeartbeat()];
+      }
+      return [];
+    }
+
+    const results: KeepAliveResult[] = [];
+    for (const proj of projects) {
+      const res = await this.executeHeartbeat(proj);
+      results.push(res);
+    }
+    return results;
   }
 }

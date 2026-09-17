@@ -1,0 +1,58 @@
+name: Ambiakshi Weekly Comprehensive Health Audit
+
+on:
+  schedule:
+    # Runs Sundays at 07:00 UTC (3:00 AM EDT / 2:00 AM EST)
+    - cron: '0 7 * * 0'
+  workflow_dispatch:
+    # Allows manual 1-click trigger from GitHub Actions tab
+
+jobs:
+  weekly-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Configure Google Service Account (if provided)
+        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
+        run: |
+          mkdir -p config
+          echo "$GOOGLE_SERVICE_ACCOUNT_JSON" > config/google-service-account.json
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Run Weekly Comprehensive Health Audit
+        run: npm run audit:weekly
+        env:
+          SUPABASE_TOOLS_URL: ${{ secrets.SUPABASE_TOOLS_URL }}
+          SUPABASE_TOOLS_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TOOLS_SERVICE_ROLE_KEY }}
+          SUPABASE_TOOLS_ANON_KEY: ${{ secrets.SUPABASE_TOOLS_ANON_KEY }}
+          SUPABASE_HOME_URL: ${{ secrets.SUPABASE_HOME_URL }}
+          SUPABASE_HOME_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_HOME_SERVICE_ROLE_KEY }}
+          SUPABASE_HOME_ANON_KEY: ${{ secrets.SUPABASE_HOME_ANON_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SSL_EXPIRY_WARNING_DAYS: 30
+          MONITORED_DOMAINS: "www.ambiakshi.tools,ambiakshi.com,mobile.ambiakshi.com,slm.ambiakshi.com"
+          MONITORED_SITEMAPS: "https://www.ambiakshi.tools/sitemap.xml,https://mobile.ambiakshi.com/sitemap.xml,https://ambiakshi.com/sitemap.xml,https://slm.ambiakshi.com/sitemap.xml"
+
+      - name: Upload Weekly Audit Reports (Artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-audit-reports
+          path: |
+            reports/audits/*.md
+            reports/indexing/*.md
+          retention-days: 30
