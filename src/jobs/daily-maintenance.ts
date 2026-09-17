@@ -5,6 +5,7 @@ import { fetchAllSitemaps } from "../services/sitemap-fetcher.js";
 import { IndexingQueueManager, UrlRecord } from "../services/indexing-queue.js";
 import { GscIndexerService, UrlInspectionResult } from "../services/gsc-indexer.js";
 import { SupabaseKeepAliveService, KeepAliveResult } from "../services/supabase-keepalive.js";
+import { DiscordNotifierService } from "../services/discord-notifier.js";
 
 export interface DailyRunReport {
   timestamp: string;
@@ -180,8 +181,27 @@ export async function runDailyMaintenance(customQuota?: number): Promise<DailyRu
 
   await fs.writeFile(reportPath, reportMarkdown, "utf8");
   console.log(`Report generated: ${reportPath}`);
+
+  // 8. Dispatch Discord Daily Digest if configured
+  const durationSeconds = (Date.now() - startTime) / 1000;
+  if (config.discordWebhookUrl) {
+    console.log(`\nDispatching daily maintenance summary to Discord...`);
+    const discordRes = await DiscordNotifierService.sendDailyMaintenanceDigest({
+      batchSize: batch.length,
+      status200,
+      status40x,
+      statusOther,
+      gscSuccess,
+      gscSkipped,
+      gscFailed,
+      supabaseResults,
+      durationSeconds,
+    });
+    console.log(`Discord dispatch: ${discordRes.message}`);
+  }
+
   console.log(
-    `Batch completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s. Next run scheduled for 4:00 AM EST.`
+    `Batch completed in ${durationSeconds.toFixed(1)}s. Next run scheduled for 4:00 AM EST.`
   );
 
   return {

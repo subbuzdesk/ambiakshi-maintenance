@@ -162,4 +162,72 @@ export class DiscordNotifierService {
       embeds: [embed],
     });
   }
+
+  /**
+   * Send structured Daily Maintenance Digest to Discord
+   */
+  static async sendDailyMaintenanceDigest(data: {
+    batchSize: number;
+    status200: number;
+    status40x: number;
+    statusOther: number;
+    gscSuccess: number;
+    gscSkipped: number;
+    gscFailed: number;
+    supabaseResults: Array<{ projectName?: string; projectId?: string; success: boolean; durationMs: number; table: string }>;
+    durationSeconds: number;
+  }): Promise<{ success: boolean; message: string }> {
+    const hasErrors = data.status40x > 0 || data.gscFailed > 0;
+    const color = hasErrors ? 0xef4444 : 0x10b981;
+    const statusEmoji = hasErrors ? "⚠️" : "🟢";
+
+    const supabaseSummary =
+      data.supabaseResults.length > 0
+        ? data.supabaseResults
+            .map(
+              (r) =>
+                `• **${r.projectName || r.projectId}**: ${r.success ? "✅ Active" : "❌ Failed"} (\`${r.durationMs}ms\`)`
+            )
+            .join("\n")
+        : "ℹ️ No Supabase databases configured";
+
+    const fields: DiscordEmbedField[] = [
+      {
+        name: "🌐 URL Health Check",
+        value: `**${data.status200} / ${data.batchSize}** OK (200)\n${
+          data.status40x > 0 ? `⚠️ **${data.status40x} 40x errors**` : "✅ All inspected URLs healthy"
+        }`,
+        inline: true,
+      },
+      {
+        name: "🔍 Google Indexing API",
+        value: `Submitted: **${data.gscSuccess}**\nSkipped: **${data.gscSkipped}** | Failed: **${data.gscFailed}**`,
+        inline: true,
+      },
+      {
+        name: "⏱️ Batch Runtime",
+        value: `\`${data.durationSeconds.toFixed(1)}s\` total`,
+        inline: true,
+      },
+      {
+        name: "🗄️ Supabase Keep-Alive",
+        value: supabaseSummary,
+        inline: false,
+      },
+    ];
+
+    const embed: DiscordEmbed = {
+      title: `${statusEmoji} Ambiakshi Daily Maintenance & Keep-Alive Run`,
+      description: `Daily batch of **${data.batchSize} URLs** checked and submitted to Google Indexing API. Both Supabase instances pinged to maintain active compute.`,
+      color,
+      fields,
+      footer: { text: "Ambiakshi Automated Maintenance Suite • Daily 4:00 AM EST Run" },
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.sendNotification({
+      username: "Ambiakshi Daily Maintenance Bot",
+      embeds: [embed],
+    });
+  }
 }
