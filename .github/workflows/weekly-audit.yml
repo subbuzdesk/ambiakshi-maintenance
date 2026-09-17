@@ -16,14 +16,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js (v20)
+      - name: Setup Node.js (v22)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Configure Google Service Account (if provided)
         if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
@@ -52,6 +52,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: weekly-audit-reports
+          if-no-files-found: ignore
           path: |
             reports/audits/*.md
             reports/indexing/*.md
