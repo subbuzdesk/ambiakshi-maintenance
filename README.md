@@ -185,9 +185,57 @@ To enable direct indexing submissions to Google:
 | `npm run supabase:keepalive` | Runs a standalone Supabase heartbeat dummy insert/delete. |
 | `npm run supabase:inventory` | Scans adjacent local Git repositories (`ambiakshi-home`, `ambiakshi-tools`, etc.) and probes table counts. |
 | `npm run maintenance:mobile` | **Phase 2**: Runs dedicated mobile games maintenance (PromptCraft, Digitle, Vectoshift), inspects local repos, and dispatches Discord summary. |
-| `npm run mobile:audit` | CLI alias to run mobile games maintenance via unified entry point. |
+| `npm run backup:all` | Runs full disaster recovery suite: Supabase database dump, Git repository cold bundles, encrypted secret escrow, housekeeping, and Google Drive upload. |
+| `npm run backup:drive` | Syncs all local cold backups (`backups/`) directly to Google Drive. |
+| `npm run auth:google-drive` | Launches interactive Google Drive OAuth 2.0 flow to link personal Google Drive account. |
+| `npm run restore:backup` | **One-Click Disaster Recovery Restore**: Interactively or headlessly decrypts secrets, clones repositories from `.bundle` archives, and decompresses Supabase snapshots. |
+| `npm run housekeeping:prune` | Rotates oversized logs (>5MB) and prunes stale markdown reports older than 30 days. |
 
 ---
+
+## Disaster Recovery & One-Click Ecosystem Restore
+
+The restore tool allows you to reconstruct the entire Ambiakshi engineering ecosystem on your current machine or on a brand-new computer.
+
+### 1. Interactive Restore
+Simply run:
+```bash
+npm run restore:backup
+```
+The wizard will:
+1. List available snapshots (sorted newest first).
+2. Allow you to choose what to restore (All, Secrets, Repositories, or Supabase).
+3. Prompt for the destination target directory (default: sibling folder `../`).
+4. Decrypt secrets, clone repos from bundles, and decompress databases.
+
+### 2. Restoring on a Brand-New Computer
+If setting up on a fresh machine where local repositories do not exist:
+```bash
+# 1. Clone this maintenance repository
+git clone https://github.com/subbuzdesk/ambiakshi-maintenance.git
+cd ambiakshi-maintenance
+npm install
+
+# 2. Authenticate Google Drive (if pulling cloud archives)
+npm run auth:google-drive
+
+# 3. Restore all 12 repositories and secret configs directly from Google Drive
+npm run restore:backup -- --all --from-drive
+```
+
+### 3. Advanced Flags
+| Flag | Description |
+| :--- | :--- |
+| `--all` | Non-interactively restore all components from latest snapshot. |
+| `--secrets` | Decrypt and unpack secret escrow files only (`.env`, `.env.local`, service accounts). |
+| `--repos` | Restore Git repositories only from `.bundle` files. |
+| `--supabase` | Decompress Supabase `.json.gz` dumps into readable JSON. |
+| `--from-drive` | Download backup archives from Google Drive before restoring. |
+| `--target-dir <path>` | Specify custom directory to unpack repositories into. |
+| `--passphrase <pass>` | Pass secret decryption passphrase non-interactively. |
+| `--dry-run` | Simulate restoration without writing files or cloning. |
+| `--force` | Clone even if target directory already exists (appends `_restored`). |
+| `--list` | List all discovered snapshots across `backups/`. |
 
 ## Automated Scheduling: Windows Task Scheduler
 
