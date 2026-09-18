@@ -72,6 +72,12 @@ export interface AppConfig {
   backupSecretsDir: string;
   backupRetentionDays: number;
   secretBackupPassphrase?: string;
+  googleDriveFolderId?: string;
+  googleOAuthClientId?: string;
+  googleOAuthClientSecret?: string;
+  googleOAuthRefreshToken?: string;
+  googleOAuthTokenPath: string;
+  googleOAuthCredentialsPath: string;
   ecosystemRepos: EcosystemRepo[];
 }
 
@@ -344,5 +350,16 @@ export const config: AppConfig = {
   backupSecretsDir: path.join(rootDir, "backups", "secrets"),
   backupRetentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10),
   secretBackupPassphrase: process.env.SECRET_BACKUP_PASSPHRASE,
+  googleDriveFolderId:
+    process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID?.trim() || "1Wl9n0w8TcNU2pSDnBCfeFtRjvFCDLI6k",
+  googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID?.trim(),
+  googleOAuthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim(),
+  googleOAuthRefreshToken: process.env.GOOGLE_OAUTH_REFRESH_TOKEN?.trim(),
+  googleOAuthTokenPath: process.env.GOOGLE_OAUTH_TOKEN_PATH
+    ? path.resolve(rootDir, process.env.GOOGLE_OAUTH_TOKEN_PATH)
+    : path.join(rootDir, "config", "google-oauth-token.json"),
+  googleOAuthCredentialsPath: process.env.GOOGLE_OAUTH_CREDENTIALS_PATH
+    ? path.resolve(rootDir, process.env.GOOGLE_OAUTH_CREDENTIALS_PATH)
+    : path.join(rootDir, "config", "google-oauth-credentials.json"),
   ecosystemRepos: defaultEcosystemRepos,
 };

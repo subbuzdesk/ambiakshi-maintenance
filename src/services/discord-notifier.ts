@@ -379,6 +379,12 @@ export class DiscordNotifierService {
       fileSizeBytes: number;
       success: boolean;
     };
+    driveSummary?: {
+      filesUploadedCount: number;
+      totalBytesUploaded: number;
+      folderUrl: string;
+      allSuccessful: boolean;
+    };
     durationSeconds: number;
   }): Promise<{ success: boolean; message: string }> {
     const isSuccess =
@@ -430,6 +436,18 @@ export class DiscordNotifierService {
         value: data.secretSummary.success
           ? `Captured **${data.secretSummary.filesCapturedCount}** secret/env files (AES-256-GCM encrypted, \`${(data.secretSummary.fileSizeBytes / 1024).toFixed(1)} KB\`)`
           : "❌ Secret backup failed",
+        inline: false,
+      });
+    }
+
+    // 4. Google Drive Cloud Backup field
+    if (data.driveSummary) {
+      const mb = (data.driveSummary.totalBytesUploaded / (1024 * 1024)).toFixed(2);
+      fields.push({
+        name: "☁️ Google Drive Cloud Storage",
+        value: data.driveSummary.allSuccessful
+          ? `Synced **${data.driveSummary.filesUploadedCount}** backup files to Google Drive (\`${mb} MB\` total)\n📁 [Open Google Drive Backup Folder](${data.driveSummary.folderUrl})`
+          : `⚠️ Google Drive sync partially failed.\n📁 [Open Folder](${data.driveSummary.folderUrl})`,
         inline: false,
       });
     }
