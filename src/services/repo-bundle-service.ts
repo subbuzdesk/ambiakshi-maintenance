@@ -43,7 +43,8 @@ export class RepoBundleService {
    */
   static async bundleRepo(
     repo: EcosystemRepo,
-    dateStamp: string
+    dateStamp: string,
+    pullFromOrigin = true
   ): Promise<SingleRepoBundleResult> {
     // 1. Verify existence
     try {
@@ -86,6 +87,17 @@ export class RepoBundleService {
         cwd: repo.path,
       });
       branch = branchOut.trim();
+
+      // Pull latest commits from origin if clean
+      if (pullFromOrigin) {
+        try {
+          const { stdout: statusOut } = await execAsync("git status --porcelain", { cwd: repo.path });
+          if (!statusOut.trim()) {
+            await execAsync("git fetch origin", { cwd: repo.path });
+            await execAsync(`git pull --ff-only origin ${branch}`, { cwd: repo.path });
+          }
+        } catch {}
+      }
 
       const { stdout: commitOut } = await execAsync("git rev-parse --short HEAD", {
         cwd: repo.path,
@@ -146,7 +158,7 @@ export class RepoBundleService {
   /**
    * Bundle all configured ecosystem repositories
    */
-  static async bundleAllRepos(): Promise<RepoBundleSummary> {
+  static async bundleAllRepos(pullFromOrigin = true): Promise<RepoBundleSummary> {
     const startTime = Date.now();
     await this.ensureDirectories();
 
@@ -154,7 +166,7 @@ export class RepoBundleService {
     const results: SingleRepoBundleResult[] = [];
 
     for (const repo of config.ecosystemRepos) {
-      const res = await this.bundleRepo(repo, dateStamp);
+      const res = await this.bundleRepo(repo, dateStamp, pullFromOrigin);
       results.push(res);
     }
 

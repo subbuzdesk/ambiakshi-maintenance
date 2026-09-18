@@ -40,6 +40,7 @@ export interface EcosystemRepo {
   name: string;
   path: string;
   description: string;
+  repoUrl?: string;
 }
 
 export interface AppConfig {
@@ -152,72 +153,84 @@ const defaultEcosystemRepos: EcosystemRepo[] = [
     id: "ambiakshi-maintenance",
     name: "Ambiakshi Maintenance Suite",
     path: rootDir,
+    repoUrl: "https://github.com/subbuzdesk/ambiakshi-maintenance.git",
     description: "Central automated housekeeping, GSC indexing, backup, and health monitoring",
   },
   {
     id: "ambiakshi-home",
     name: "Ambiakshi Home Platform",
     path: path.resolve(rootDir, "..", "ambiakshi-home"),
+    repoUrl: "https://github.com/subbuzdesk/ambiakshi-home.git",
     description: "Main corporate web portal (ambiakshi.com)",
   },
   {
     id: "ambiakshi-tools",
     name: "Ambiakshi Tools",
     path: path.resolve(rootDir, "..", "ambiakshi-tools"),
+    repoUrl: "https://github.com/subbuzdesk/ambiakshi-tools.git",
     description: "67 in-browser privacy utilities and calculators (ambiakshi.tools)",
   },
   {
     id: "ambiakshi-mobile",
     name: "Ambiakshi Mobile Hub",
     path: path.resolve(rootDir, "..", "ambiakshi-mobile"),
+    repoUrl: "https://github.com/subbuzdesk/ambiakshi-mobile.git",
     description: "Mobile web applications and game hub (mobile.ambiakshi.com)",
   },
   {
     id: "ambiakshi-slm",
     name: "Ambiakshi Sovereign SLM",
     path: path.resolve(rootDir, "..", "ambiakshi-slm"),
+    repoUrl: "https://github.com/subbuzdesk/ambiakshi-slm.git",
     description: "Financial sentiment SLM foundry and web portal (slm.ambiakshi.com)",
   },
   {
     id: "promptcraft-mobile",
     name: "PromptCraft Mobile",
     path: path.resolve(rootDir, "..", "promptcraft-mobile"),
+    repoUrl: "https://github.com/subbuzdesk/promptcraft-mobile.git",
     description: "Universal React Native + Expo mobile application suite",
   },
   {
     id: "digitle-game",
     name: "Digitle Game",
     path: path.resolve(rootDir, "..", "digitle-game"),
+    repoUrl: "https://github.com/subbuzdesk/digitle-game.git",
     description: "Enterprise cyber-vault number deduction logic game",
   },
   {
     id: "vectoshift",
     name: "Vectoshift",
     path: path.resolve(rootDir, "..", "vectoshift"),
+    repoUrl: "https://github.com/subbuzdesk/vectoshift.git",
     description: "2D vector physics puzzle odyssey game",
   },
   {
     id: "cortexcatalystweb",
     name: "CortexCatalyst Web",
     path: path.resolve(rootDir, "..", "cortexcatalystweb"),
+    repoUrl: "https://github.com/subbuzdesk/cortexcatalystweb.git",
     description: "High-performance Astro SSG modern platform for CortexCatalyst",
   },
   {
     id: "radhamahalingam360",
     name: "Radha Mahalingam 360",
     path: path.resolve(rootDir, "..", "radhamahalingam360"),
+    repoUrl: "https://github.com/subbuzdesk/radhamahalingam360.git",
     description: "Executive leadership, coaching, and board advisory portfolio (radhamahalingam360.com)",
   },
   {
     id: "rkaits",
     name: "RKAI Tech Solutions",
     path: path.resolve(rootDir, "..", "rkaits"),
+    repoUrl: "https://github.com/subbuzdesk/rkaits.git",
     description: "Astro SSG corporate web presence for RKAI Tech Solutions Inc (rkaits.com)",
   },
   {
     id: "ambiakshi-coach",
     name: "Ambiakshi Ledger Coach",
     path: path.resolve(rootDir, "..", "ambiakshi-coach"),
+    repoUrl: "https://github.com/subbuzdesk/ambiakshi-coach.git",
     description: "Coach-first Career OS and fact ledger engine",
   },
 ];

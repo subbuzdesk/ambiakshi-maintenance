@@ -25,7 +25,9 @@
     "backup:drive": "tsx -e \"import('./src/services/google-drive-service.js').then(m => m.GoogleDriveService.syncAllBackupsToDrive().then(r => console.log(JSON.stringify(r, null, 2))))\"",
     "auth:google-drive": "tsx scripts/setup-google-drive-oauth.ts",
     "housekeeping:prune": "tsx -e \"import('./src/services/pruning-service.js').then(m => m.PruningService.runFullPruning().then(r => console.log(JSON.stringify(r, null, 2))))\"",
-    "restore:backup": "tsx scripts/restore-backup.ts"
+    "restore:backup": "tsx scripts/restore-backup.ts",
+    "repos:sync": "tsx scripts/sync-repos.ts",
+    "repos:pull": "tsx scripts/sync-repos.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

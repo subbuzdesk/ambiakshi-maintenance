@@ -473,6 +473,19 @@ export class RestoreService {
             { cwd: finalDest }
           );
           branch = bOut.trim();
+        } catch {}
+
+        // Configure origin remote to GitHub repository URL instead of local bundle path, and pull latest
+        const repoConfig = config.ecosystemRepos.find((r) => r.id === bundle.id);
+        const remoteUrl = repoConfig?.repoUrl || `https://github.com/subbuzdesk/${bundle.id}.git`;
+        try {
+          await execAsync(`git remote set-url origin "${remoteUrl}"`, { cwd: finalDest });
+          await execAsync("git fetch origin", { cwd: finalDest });
+          await execAsync(`git branch --set-upstream-to=origin/${branch} ${branch}`, { cwd: finalDest });
+          await execAsync(`git pull --ff-only origin ${branch}`, { cwd: finalDest });
+        } catch {}
+
+        try {
           const { stdout: cOut } = await execAsync(
             "git rev-parse --short HEAD",
             { cwd: finalDest }

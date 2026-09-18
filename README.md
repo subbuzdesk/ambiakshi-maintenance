@@ -189,6 +189,8 @@ To enable direct indexing submissions to Google:
 | `npm run backup:drive` | Syncs all local cold backups (`backups/`) directly to Google Drive. |
 | `npm run auth:google-drive` | Launches interactive Google Drive OAuth 2.0 flow to link personal Google Drive account. |
 | `npm run restore:backup` | **One-Click Disaster Recovery Restore**: Interactively or headlessly decrypts secrets, clones repositories from `.bundle` archives, and decompresses Supabase snapshots. |
+| `npm run repos:pull` | **Ecosystem Pull & Sync**: Fetches and fast-forward pulls origin across all 12 local repositories, keeping local workstations 100% up-to-date with GitHub. |
+| `npm run repos:sync` | CLI alias for `npm run repos:pull`. |
 | `npm run housekeeping:prune` | Rotates oversized logs (>5MB) and prunes stale markdown reports older than 30 days. |
 
 ---
